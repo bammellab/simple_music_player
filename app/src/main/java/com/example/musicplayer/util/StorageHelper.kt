@@ -24,6 +24,27 @@ object StorageHelper {
         }
     }
 
+    /*
+    FOR LATER DEBUGGING:
+    4. Explicitly Handle the "null" Tag
+In Kotlin, if you are passing this context to a system service or a library that doesn't expect an attribution tag, it might throw a fit even if declared. Ensure your attributionTag string exactly matches (case-sensitive) what is in the XML.
+
+If the error persists specifically when calling a system service, try checking if the context actually carries the tag:
+
+Kotlin
+
+private fun getAttributedContext(context: Context): Context {
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) { // Note: Attribution improved in API 31
+        val attributed = context.createAttributionContext("attributionTag")
+        // Debug check: Verify the tag was applied
+        println("Attribution Tag: ${attributed.attributionTag}")
+        attributed
+    } else {
+        context
+    }
+}
+     */
+
     fun getStorageOptions(context: Context): List<StorageOption> {
         val attributedContext = getAttributedContext(context)
         val storageManager = attributedContext.getSystemService(Context.STORAGE_SERVICE) as StorageManager
