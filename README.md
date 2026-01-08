@@ -23,4 +23,4 @@ A simple Android music player that plays audio files from a selected folder.
 - Android MediaPlayer API
 - ViewModel with StateFlow
 
-<img src="docs/screenshots/screenshot.png" alt="screenshot" width = 130>
+<img src="docs/screenshots/screenshot.png" alt="screenshot" width = 270>
