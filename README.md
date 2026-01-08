@@ -2,7 +2,7 @@
 
 A simple Android music player that plays audio files from a selected folder.
 
-![Screenshot](./docs/screenshots/screenshot.png)
+![Screenshot](./docs/screenshots/screenshot.png | width=100)
 
 ## Features
 
