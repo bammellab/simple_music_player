@@ -171,10 +171,14 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
                     Pair(name, audioFiles)
                 }
 
-                // Restore saved state if requested
+                // Restore saved state if requested, otherwise select first track
                 val savedTrackIndex = if (restoreState) getSavedTrackIndex() else -1
                 val savedShuffleState = if (restoreState) getSavedShuffleState() else false
-                val trackIndex = if (savedTrackIndex in files.indices) savedTrackIndex else -1
+                val trackIndex = when {
+                    savedTrackIndex in files.indices -> savedTrackIndex
+                    files.isNotEmpty() -> 0  // Auto-select first track
+                    else -> -1
+                }
 
                 _uiState.value = _uiState.value.copy(
                     audioFiles = files,
