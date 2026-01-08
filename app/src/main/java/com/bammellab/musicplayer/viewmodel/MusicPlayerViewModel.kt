@@ -12,6 +12,7 @@ import com.bammellab.musicplayer.data.model.AudioFile
 import com.bammellab.musicplayer.player.AudioPlayerManager
 import com.bammellab.musicplayer.player.PlaybackState
 import com.bammellab.musicplayer.player.ShuffleTracker
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,6 +20,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class MusicPlayerUiState(
     val audioFiles: List<AudioFile> = emptyList(),
@@ -142,32 +144,41 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
             )
 
             try {
-                val documentFile = DocumentFile.fromTreeUri(getApplication(), uri)
-                val folderName = documentFile?.name ?: "Unknown Folder"
+                // Run file operations on IO dispatcher to keep UI responsive
+                val (folderName, files) = withContext(Dispatchers.IO) {
+                    val documentFile = DocumentFile.fromTreeUri(getApplication(), uri)
+                    val name = documentFile?.name ?: "Unknown Folder"
 
-                val files = documentFile?.listFiles()
-                    ?.filter { file ->
-                        file.isFile &&
-                        file.name != null &&
-                        audioExtensions.any { ext ->
-                            file.name!!.lowercase().endsWith(".$ext")
+                    val audioFiles = documentFile?.listFiles()
+                        ?.filter { file ->
+                            file.isFile &&
+                            file.name != null &&
+                            audioExtensions.any { ext ->
+                                file.name!!.lowercase().endsWith(".$ext")
+                            }
                         }
-                    }
-                    ?.map { file ->
-                        AudioFile(
-                            uri = file.uri,
-                            displayName = file.name ?: "Unknown",
-                            mimeType = file.type ?: "audio/*",
-                            size = file.length()
-                        )
-                    }
-                    ?.sortedBy { it.displayName.lowercase() }
-                    ?: emptyList()
+                        ?.map { file ->
+                            AudioFile(
+                                uri = file.uri,
+                                displayName = file.name ?: "Unknown",
+                                mimeType = file.type ?: "audio/*",
+                                size = file.length()
+                            )
+                        }
+                        ?.sortedBy { it.displayName.lowercase() }
+                        ?: emptyList()
 
-                // Restore saved state if requested
+                    Pair(name, audioFiles)
+                }
+
+                // Restore saved state if requested, otherwise select first track
                 val savedTrackIndex = if (restoreState) getSavedTrackIndex() else -1
                 val savedShuffleState = if (restoreState) getSavedShuffleState() else false
-                val trackIndex = if (savedTrackIndex in files.indices) savedTrackIndex else -1
+                val trackIndex = when {
+                    savedTrackIndex in files.indices -> savedTrackIndex
+                    files.isNotEmpty() -> 0  // Auto-select first track
+                    else -> -1
+                }
 
                 _uiState.value = _uiState.value.copy(
                     audioFiles = files,

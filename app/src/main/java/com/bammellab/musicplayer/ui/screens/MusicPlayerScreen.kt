@@ -21,7 +21,6 @@ import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.SdCard
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -47,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bammellab.musicplayer.ui.components.FileListView
+import com.bammellab.musicplayer.ui.components.MusicLoadingIndicator
 import com.bammellab.musicplayer.ui.components.NowPlayingView
 import com.bammellab.musicplayer.ui.components.PlayerControls
 import com.bammellab.musicplayer.util.StorageHelper
@@ -134,7 +134,9 @@ fun MusicPlayerScreen(
                     .padding(innerPadding),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator()
+                MusicLoadingIndicator(
+                    message = "Loading music files..."
+                )
             }
         } else {
             Column(
