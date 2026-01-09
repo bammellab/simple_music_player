@@ -297,10 +297,12 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
             PlaybackState.PLAYING -> {
                 activePlayer.pause()
                 stopPositionUpdates()
+                _playbackState.value = PlaybackState.PAUSED
             }
             PlaybackState.PAUSED -> {
                 activePlayer.resume()
                 startPositionUpdates()
+                _playbackState.value = PlaybackState.PLAYING
             }
             PlaybackState.STOPPED, PlaybackState.IDLE -> {
                 val index = if (_uiState.value.currentTrackIndex >= 0) {
