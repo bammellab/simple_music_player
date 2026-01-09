@@ -27,8 +27,16 @@ An Android application that allows users to navigate to a folder in the Android 
 
 ### 5. User Interface
 - **File List View**: Display all audio files in the selected folder
-- **Now Playing View**: Sub-view showing the currently playing file
+- **Now Playing View**: Sub-view showing the currently playing file with album art
 - Intuitive control buttons for playback management
+- **Adaptive Layout**:
+  - Portrait mode: Vertical stack (file list above, player below)
+  - Landscape mode: Side-by-side (file list on left, player on right)
+  - Optimized compact layouts for phone screens in landscape
+
+### 6. Chromecast Support
+- Cast audio to Google Cast-enabled devices
+- Seamless handoff between local and cast playback
 
 ## Technical Constraints
 - Target Platform: Android
@@ -51,37 +59,49 @@ All core requirements have been implemented:
 - Now Playing view with track name and progress slider
 - Previous/Next track navigation (bonus feature)
 - Seek bar for track position (bonus feature)
+- Album art display extracted from audio metadata
+- Adaptive landscape/portrait layouts for phones and tablets
+- Chromecast support for casting to Google Cast devices
 
 ### Architecture
 - **UI Framework**: Jetpack Compose with Material 3
 - **State Management**: ViewModel with StateFlow
 - **Audio**: Android MediaPlayer API
 - **File Access**: DocumentFile with SAF
+- **Casting**: Google Cast SDK with custom HTTP streaming server
+- **Image Loading**: Coil with custom MediaMetadataRetriever fetcher for album art
 
 ### Project Structure
 ```
 app/src/main/java/com/bammellab/musicplayer/
 ├── MainActivity.kt                    # Entry point
+├── cast/
+│   ├── AudioStreamServer.kt           # HTTP server for casting
+│   ├── CastOptionsProvider.kt         # Cast SDK configuration
+│   └── CastRemotePlayer.kt            # Remote playback control
 ├── data/model/
 │   └── AudioFile.kt                   # Data model
 ├── player/
-│   └── AudioPlayerManager.kt          # MediaPlayer wrapper
+│   ├── AudioPlayerManager.kt          # MediaPlayer wrapper
+│   └── PlayerController.kt            # Player interface
 ├── ui/
 │   ├── components/
+│   │   ├── AlbumArtImage.kt           # Album art with metadata extraction
+│   │   ├── CastButton.kt              # Chromecast button
 │   │   ├── FileListView.kt            # Track list
-│   │   ├── NowPlayingView.kt          # Current track display
-│   │   └── PlayerControls.kt          # Playback controls
+│   │   ├── NowPlayingView.kt          # Current track display (adaptive)
+│   │   └── PlayerControls.kt          # Playback controls (adaptive)
 │   ├── screens/
-│   │   └── MusicPlayerScreen.kt       # Main screen
+│   │   └── MusicPlayerScreen.kt       # Main screen with landscape/portrait layouts
 │   └── theme/                         # Material theme
 └── viewmodel/
-    └── MusicPlayerViewModel.kt        # Business logic
+    └── MusicPlayerViewModel.kt        # Business logic & state management
 ```
 
 ## Future Considerations (Out of Scope for Initial Version)
 - Background playback service with notification controls
 - Playlist saving
-- Album art display from audio metadata
 - Subfolder support
 - Repeat modes (single, all, none)
 - Audio focus handling
+- Equalizer support
