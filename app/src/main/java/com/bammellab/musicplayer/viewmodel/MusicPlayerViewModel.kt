@@ -201,6 +201,13 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
 
     private fun loadFolder(uri: Uri, restoreState: Boolean = false) {
         viewModelScope.launch {
+            // Stop current playback and reset player state when changing folders
+            stopPositionUpdates()
+            activePlayer.stop()
+            _playbackState.value = PlaybackState.IDLE
+            _currentPosition.value = 0
+            _duration.value = 0
+
             _uiState.value = _uiState.value.copy(
                 isLoading = true,
                 errorMessage = null
