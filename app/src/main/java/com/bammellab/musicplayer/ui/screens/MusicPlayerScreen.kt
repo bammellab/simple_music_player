@@ -175,6 +175,8 @@ fun MusicPlayerScreen(
                     folderListState = folderListState,
                     onFolderSelected = { viewModel.navigateToFolder(it.path) },
                     onPlayFolder = { viewModel.selectFolderForPlayback(it) },
+                    isRefreshing = uiState.isRefreshing,
+                    onRefresh = { viewModel.refreshCurrentView() },
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding)
@@ -199,6 +201,8 @@ fun MusicPlayerScreen(
                         onShuffleToggle = { viewModel.toggleShuffle() },
                         onVolumeUp = { viewModel.volumeUp() },
                         onVolumeDown = { viewModel.volumeDown() },
+                        isRefreshing = uiState.isRefreshing,
+                        onRefresh = { viewModel.refreshCurrentView() },
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(innerPadding)
@@ -218,6 +222,8 @@ fun MusicPlayerScreen(
                         onShuffleToggle = { viewModel.toggleShuffle() },
                         onVolumeUp = { viewModel.volumeUp() },
                         onVolumeDown = { viewModel.volumeDown() },
+                        isRefreshing = uiState.isRefreshing,
+                        onRefresh = { viewModel.refreshCurrentView() },
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(innerPadding)
@@ -263,6 +269,7 @@ private fun PermissionRequestContent(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FolderBrowserContent(
     folders: List<FolderNode>,
@@ -270,6 +277,8 @@ private fun FolderBrowserContent(
     folderListState: LazyListState,
     onFolderSelected: (FolderNode) -> Unit,
     onPlayFolder: (FolderNode) -> Unit,
+    isRefreshing: Boolean = false,
+    onRefresh: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
@@ -285,25 +294,37 @@ private fun FolderBrowserContent(
         }
 
         if (folders.isEmpty()) {
-            Box(
+            androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+                isRefreshing = isRefreshing,
+                onRefresh = onRefresh,
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = Icons.Filled.Folder,
-                        contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "No music folders found",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Filled.Folder,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "No music folders found",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Pull down to refresh",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         } else {
@@ -321,7 +342,9 @@ private fun FolderBrowserContent(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
-                listState = folderListState
+                listState = folderListState,
+                isRefreshing = isRefreshing,
+                onRefresh = onRefresh
             )
         }
     }
@@ -342,6 +365,8 @@ private fun PortraitLayout(
     onShuffleToggle: () -> Unit,
     onVolumeUp: () -> Unit,
     onVolumeDown: () -> Unit,
+    isRefreshing: Boolean = false,
+    onRefresh: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
@@ -363,7 +388,9 @@ private fun PortraitLayout(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth(),
-            listState = fileListState
+            listState = fileListState,
+            isRefreshing = isRefreshing,
+            onRefresh = onRefresh
         )
 
         HorizontalDivider()
@@ -414,6 +441,8 @@ private fun LandscapeLayout(
     onShuffleToggle: () -> Unit,
     onVolumeUp: () -> Unit,
     onVolumeDown: () -> Unit,
+    isRefreshing: Boolean = false,
+    onRefresh: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Row(modifier = modifier) {
@@ -436,7 +465,9 @@ private fun LandscapeLayout(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
-                listState = fileListState
+                listState = fileListState,
+                isRefreshing = isRefreshing,
+                onRefresh = onRefresh
             )
         }
 

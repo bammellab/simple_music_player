@@ -34,6 +34,7 @@ data class MusicPlayerUiState(
     val selectedFolderPath: String? = null,
     val selectedFolderName: String = "No folder selected",
     val isLoading: Boolean = false,
+    val isRefreshing: Boolean = false,
     val errorMessage: String? = null,
     val allFolders: List<MusicFolder> = emptyList(),
     val showFolderBrowser: Boolean = true,
@@ -391,6 +392,153 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
             // In folder browser and can go up - navigate up
             navigateUp()
         }
+    }
+
+    /**
+     * Refresh the current view by re-querying MediaStore.
+     * If in folder browser, refreshes the folder tree and stays at current path if it still exists.
+     * If viewing tracks, refreshes the track list for the current folder.
+     * If the current folder/path no longer exists, navigates up to the nearest existing parent.
+     */
+    fun refreshCurrentView() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isRefreshing = true)
+
+            try {
+                val currentBrowsePath = _uiState.value.currentBrowsePath
+                val selectedFolderPath = _uiState.value.selectedFolderPath
+                val showFolderBrowser = _uiState.value.showFolderBrowser
+
+                val result = withContext(Dispatchers.IO) {
+                    mediaStoreRepository.queryAudioFiles()
+                }
+
+                allFilesMap = result.allFiles
+                val folderTree = result.folderTree
+
+                if (showFolderBrowser) {
+                    // In folder browser mode - find the current browse path or nearest parent
+                    val validPath = findValidPathOrParent(folderTree, currentBrowsePath)
+                    val children = if (folderTree != null && validPath != null) {
+                        mediaStoreRepository.getChildrenAtPath(folderTree, validPath)
+                    } else {
+                        emptyList()
+                    }
+
+                    _uiState.value = _uiState.value.copy(
+                        allFolders = result.folders,
+                        folderTree = folderTree,
+                        currentBrowsePath = validPath,
+                        currentFolderChildren = children,
+                        isRefreshing = false
+                    )
+
+                    // Save the new browse path
+                    if (validPath != null) {
+                        saveBrowsePath(validPath)
+                    }
+                } else {
+                    // In track list mode - refresh tracks for current folder
+                    val existingFolder = selectedFolderPath?.let { path ->
+                        result.folders.find { it.path == path }
+                    }
+
+                    if (existingFolder != null) {
+                        // Folder still exists - refresh tracks
+                        val files = mediaStoreRepository.getFilesForFolder(existingFolder.path, allFilesMap)
+                        val currentTrackIndex = _uiState.value.currentTrackIndex
+                        val adjustedIndex = when {
+                            files.isEmpty() -> -1
+                            currentTrackIndex in files.indices -> currentTrackIndex
+                            files.isNotEmpty() -> 0
+                            else -> -1
+                        }
+
+                        _uiState.value = _uiState.value.copy(
+                            allFolders = result.folders,
+                            folderTree = folderTree,
+                            audioFiles = files,
+                            currentTrackIndex = adjustedIndex,
+                            isRefreshing = false
+                        )
+
+                        // Re-initialize shuffle tracker if needed
+                        if (_uiState.value.shuffleEnabled) {
+                            shuffleTracker.initialize(null, files.size)
+                        }
+                    } else {
+                        // Folder was removed - go back to folder browser at nearest valid parent
+                        stopPositionUpdates()
+                        activePlayer.stop()
+                        _playbackState.value = PlaybackState.IDLE
+                        _currentPosition.value = 0
+                        _duration.value = 0
+
+                        val validPath = findValidPathOrParent(folderTree, selectedFolderPath ?: currentBrowsePath)
+                        val children = if (folderTree != null && validPath != null) {
+                            mediaStoreRepository.getChildrenAtPath(folderTree, validPath)
+                        } else {
+                            emptyList()
+                        }
+
+                        _uiState.value = _uiState.value.copy(
+                            allFolders = result.folders,
+                            folderTree = folderTree,
+                            currentBrowsePath = validPath,
+                            currentFolderChildren = children,
+                            showFolderBrowser = true,
+                            audioFiles = emptyList(),
+                            currentTrackIndex = -1,
+                            selectedFolderPath = null,
+                            selectedFolderName = "No folder selected",
+                            isRefreshing = false
+                        )
+
+                        // Clear saved folder since it no longer exists
+                        clearSavedFolder()
+                        if (validPath != null) {
+                            saveBrowsePath(validPath)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isRefreshing = false,
+                    errorMessage = "Failed to refresh: ${e.message}"
+                )
+            }
+        }
+    }
+
+    /**
+     * Find the given path in the folder tree, or the nearest existing parent.
+     * Returns the root path if no valid ancestor is found.
+     */
+    private fun findValidPathOrParent(folderTree: FolderNode?, targetPath: String?): String? {
+        if (folderTree == null) return null
+        if (targetPath == null) return folderTree.path
+
+        // Check if target path exists
+        if (mediaStoreRepository.findNodeAtPath(folderTree, targetPath) != null) {
+            return targetPath
+        }
+
+        // Walk up the path hierarchy to find nearest valid parent
+        var path = targetPath
+        while (path != null && path.isNotEmpty()) {
+            val parentPath = mediaStoreRepository.getParentPath(path)
+            if (parentPath != null && parentPath.startsWith(folderTree.path)) {
+                if (mediaStoreRepository.findNodeAtPath(folderTree, parentPath) != null) {
+                    return parentPath
+                }
+                path = parentPath
+            } else {
+                break
+            }
+        }
+
+        // Fall back to root
+        return folderTree.path
     }
 
     private fun saveFolderPath(path: String) {

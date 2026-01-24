@@ -17,10 +17,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,26 +30,34 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.bammellab.musicplayer.data.model.FolderNode
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FolderListView(
     folders: List<FolderNode>,
     onFolderSelected: (FolderNode) -> Unit,
     modifier: Modifier = Modifier,
-    listState: LazyListState = rememberLazyListState()
+    listState: LazyListState = rememberLazyListState(),
+    isRefreshing: Boolean = false,
+    onRefresh: () -> Unit = {}
 ) {
-    LazyColumn(
-        state = listState,
-        modifier = modifier,
-        contentPadding = PaddingValues(vertical = 8.dp)
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
+        modifier = modifier
     ) {
-        items(
-            items = folders,
-            key = { it.path }
-        ) { folder ->
-            FolderNodeItem(
-                node = folder,
-                onClick = { onFolderSelected(folder) }
-            )
+        LazyColumn(
+            state = listState,
+            contentPadding = PaddingValues(vertical = 8.dp)
+        ) {
+            items(
+                items = folders,
+                key = { it.path }
+            ) { folder ->
+                FolderNodeItem(
+                    node = folder,
+                    onClick = { onFolderSelected(folder) }
+                )
+            }
         }
     }
 }

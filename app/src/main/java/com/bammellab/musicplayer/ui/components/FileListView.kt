@@ -18,10 +18,12 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,28 +31,36 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.bammellab.musicplayer.data.model.AudioFile
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FileListView(
     audioFiles: List<AudioFile>,
     currentTrackIndex: Int,
     onTrackSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    listState: LazyListState = rememberLazyListState()
+    listState: LazyListState = rememberLazyListState(),
+    isRefreshing: Boolean = false,
+    onRefresh: () -> Unit = {}
 ) {
-    LazyColumn(
-        state = listState,
-        modifier = modifier,
-        contentPadding = PaddingValues(vertical = 8.dp)
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
+        modifier = modifier
     ) {
-        itemsIndexed(
-            items = audioFiles,
-            key = { _, file -> file.uri.toString() }
-        ) { index, file ->
-            AudioFileItem(
-                audioFile = file,
-                isPlaying = index == currentTrackIndex,
-                onClick = { onTrackSelected(index) }
-            )
+        LazyColumn(
+            state = listState,
+            contentPadding = PaddingValues(vertical = 8.dp)
+        ) {
+            itemsIndexed(
+                items = audioFiles,
+                key = { _, file -> file.uri.toString() }
+            ) { index, file ->
+                AudioFileItem(
+                    audioFile = file,
+                    isPlaying = index == currentTrackIndex,
+                    onClick = { onTrackSelected(index) }
+                )
+            }
         }
     }
 }
