@@ -402,7 +402,8 @@ private fun PortraitLayout(
                 onNext = onNext,
                 onShuffleToggle = onShuffleToggle,
                 onVolumeUp = onVolumeUp,
-                onVolumeDown = onVolumeDown
+                onVolumeDown = onVolumeDown,
+                isCurrentTrackPlayable = uiState.currentTrack?.isPlayable ?: true
             )
         }
     }
@@ -482,7 +483,8 @@ private fun LandscapeLayout(
                 onShuffleToggle = onShuffleToggle,
                 onVolumeUp = onVolumeUp,
                 onVolumeDown = onVolumeDown,
-                isCompact = !isTablet
+                isCompact = !isTablet,
+                isCurrentTrackPlayable = uiState.currentTrack?.isPlayable ?: true
             )
         }
     }

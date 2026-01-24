@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeDown
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Shuffle
@@ -42,12 +43,21 @@ fun PlayerControls(
     onVolumeUp: () -> Unit,
     onVolumeDown: () -> Unit,
     modifier: Modifier = Modifier,
-    isCompact: Boolean = false
+    isCompact: Boolean = false,
+    isCurrentTrackPlayable: Boolean = true
 ) {
-    // Determine icon based on state
+    // Determine icon based on state and playability
     val isPlaying = playbackState == PlaybackState.PLAYING
-    val playPauseIcon = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow
-    val playPauseDescription = if (isPlaying) "Pause" else "Play"
+    val playPauseIcon = when {
+        !isCurrentTrackPlayable -> Icons.Filled.Block
+        isPlaying -> Icons.Filled.Pause
+        else -> Icons.Filled.PlayArrow
+    }
+    val playPauseDescription = when {
+        !isCurrentTrackPlayable -> "Cannot play this format"
+        isPlaying -> "Pause"
+        else -> "Play"
+    }
 
     if (isCompact) {
         // Single row layout for compact mode (landscape phone)
@@ -98,9 +108,10 @@ fun PlayerControls(
             }
 
             // Play/Pause - use key to force recomposition
-            key(isPlaying) {
+            key(isPlaying, isCurrentTrackPlayable) {
                 FilledIconButton(
                     onClick = onPlayPause,
+                    enabled = isCurrentTrackPlayable,
                     modifier = Modifier.size(44.dp)
                 ) {
                     Icon(
@@ -166,9 +177,10 @@ fun PlayerControls(
                     )
                 }
 
-                key(isPlaying) {
+                key(isPlaying, isCurrentTrackPlayable) {
                     FilledIconButton(
                         onClick = onPlayPause,
+                        enabled = isCurrentTrackPlayable,
                         modifier = Modifier.size(64.dp)
                     ) {
                         Icon(
