@@ -33,6 +33,9 @@ On devices with screens, you'll also see the track name and album art displayed 
 ### Q: Can I play music from my SD card?
 **A:** Yes! When you tap the folder icon, you can choose between internal storage and your SD card (if one is inserted).
 
+### Q: I added new music but it doesn't appear. How do I refresh?
+**A:** Pull down on the folder list or track list to refresh. The app will re-scan your storage and show any newly added music. If you're viewing a folder that was deleted, the app will automatically navigate up to the nearest existing parent folder.
+
 ### Q: Why do I need to select a folder instead of seeing all my music?
 **A:** The app uses Android's Storage Access Framework for privacy and security. This means you choose which folders the app can access, giving you full control over your music library.
 
