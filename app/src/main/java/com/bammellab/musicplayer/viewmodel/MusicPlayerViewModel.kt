@@ -2,21 +2,19 @@ package com.bammellab.musicplayer.viewmodel
 
 import android.app.Application
 import android.content.Context
-import android.content.Intent
-import android.net.Uri
-import androidx.core.net.toUri
-import androidx.documentfile.provider.DocumentFile
-import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.viewModelScope
 import com.bammellab.musicplayer.cast.AudioStreamServer
 import com.bammellab.musicplayer.cast.CastRemotePlayer
 import com.bammellab.musicplayer.cast.CastSessionManager
 import com.bammellab.musicplayer.cast.CastUiState
 import com.bammellab.musicplayer.data.model.AudioFile
+import com.bammellab.musicplayer.data.model.MusicFolder
+import com.bammellab.musicplayer.data.repository.MediaStoreRepository
 import com.bammellab.musicplayer.player.AudioPlayerManager
 import com.bammellab.musicplayer.player.PlaybackState
 import com.bammellab.musicplayer.player.PlayerController
 import com.bammellab.musicplayer.player.ShuffleTracker
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -32,10 +30,13 @@ data class MusicPlayerUiState(
     val currentTrackIndex: Int = -1,
     val shuffleEnabled: Boolean = false,
     val volume: Float = 0.5f,
-    val selectedFolderUri: Uri? = null,
+    val selectedFolderPath: String? = null,
     val selectedFolderName: String = "No folder selected",
     val isLoading: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val allFolders: List<MusicFolder> = emptyList(),
+    val showFolderBrowser: Boolean = true,
+    val hasPermission: Boolean = false
 ) {
     val currentTrack: AudioFile?
         get() = if (currentTrackIndex in audioFiles.indices) audioFiles[currentTrackIndex] else null
@@ -56,6 +57,10 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
 
     // Cast state for UI
     val castState: StateFlow<CastUiState> = castSessionManager.castState
+
+    // MediaStore repository
+    private val mediaStoreRepository = MediaStoreRepository(application)
+    private var allFilesMap: Map<String, List<AudioFile>> = emptyMap()
 
     private val shuffleTracker = ShuffleTracker(application)
     private val prefs = application.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -80,10 +85,6 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
     private var positionUpdateJob: Job? = null
     private var castStateObserverJob: Job? = null
 
-    private val audioExtensions = setOf(
-        "mp3", "wav", "ogg", "m4a", "aac", "flac", "wma", "opus"
-    )
-
     init {
         // Set completion listeners for both players
         localPlayer.setOnCompletionListener { playNext() }
@@ -91,9 +92,6 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
 
         // Observe cast state changes
         startCastStateObserver()
-
-        // Restore previously selected folder on startup
-        restoreSavedFolder()
     }
 
     private fun startCastStateObserver() {
@@ -129,38 +127,118 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    private fun restoreSavedFolder() {
-        val savedUriString = prefs.getString(KEY_FOLDER_URI, null) ?: return
-
-        try {
-            val uri = savedUriString.toUri()
-
-            // Check if we still have permission to access this URI
-            val contentResolver = getApplication<Application>().contentResolver
-            val persistedUris = contentResolver.persistedUriPermissions
-            val hasPermission = persistedUris.any {
-                it.uri == uri && it.isReadPermission
-            }
-
-            if (hasPermission) {
-                // Reload the folder and restore saved state
-                loadFolder(uri, restoreState = true)
-            } else {
-                // Permission lost, clear saved URI
-                clearSavedFolder()
-            }
-        } catch (e: Exception) {
-            clearSavedFolder()
+    fun onPermissionResult(granted: Boolean) {
+        _uiState.value = _uiState.value.copy(hasPermission = granted)
+        if (granted) {
+            loadMediaStoreAudio()
         }
     }
 
-    private fun saveFolder(uri: Uri) {
-        prefs.edit().putString(KEY_FOLDER_URI, uri.toString()).apply()
+    fun loadMediaStoreAudio() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isLoading = true,
+                errorMessage = null
+            )
+
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    mediaStoreRepository.queryAudioFiles()
+                }
+
+                allFilesMap = result.allFiles
+
+                val savedFolderPath = getSavedFolderPath()
+                val savedShuffleState = getSavedShuffleState()
+
+                // Check if saved folder still exists
+                val shouldRestoreFolder = savedFolderPath != null &&
+                        result.folders.any { it.path == savedFolderPath }
+
+                _uiState.value = _uiState.value.copy(
+                    allFolders = result.folders,
+                    isLoading = false,
+                    hasPermission = true,
+                    showFolderBrowser = !shouldRestoreFolder,
+                    shuffleEnabled = savedShuffleState
+                )
+
+                // Restore saved folder if it exists
+                if (shouldRestoreFolder) {
+                    val folder = result.folders.first { it.path == savedFolderPath }
+                    selectFolder(folder, restoreState = true)
+                }
+
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = "Failed to load music: ${e.message}"
+                )
+            }
+        }
+    }
+
+    fun selectFolder(folder: MusicFolder, restoreState: Boolean = false) {
+        viewModelScope.launch {
+            // Stop current playback when changing folders
+            stopPositionUpdates()
+            activePlayer.stop()
+            _playbackState.value = PlaybackState.IDLE
+            _currentPosition.value = 0
+            _duration.value = 0
+
+            val files = mediaStoreRepository.getFilesForFolder(folder.path, allFilesMap)
+
+            // Restore saved state if requested, otherwise select first track
+            val savedTrackIndex = if (restoreState) getSavedTrackIndex() else -1
+            val trackIndex = when {
+                savedTrackIndex in files.indices -> savedTrackIndex
+                files.isNotEmpty() -> 0
+                else -> -1
+            }
+
+            _uiState.value = _uiState.value.copy(
+                audioFiles = files,
+                selectedFolderPath = folder.path,
+                selectedFolderName = folder.displayName,
+                currentTrackIndex = trackIndex,
+                showFolderBrowser = false
+            )
+
+            // Save selected folder
+            saveFolderPath(folder.path)
+
+            // Initialize shuffle tracker for folder
+            shuffleTracker.initialize(null, files.size)
+        }
+    }
+
+    fun showFolderBrowser() {
+        // Stop playback when going back to folder browser
+        stopPositionUpdates()
+        activePlayer.stop()
+        _playbackState.value = PlaybackState.IDLE
+        _currentPosition.value = 0
+        _duration.value = 0
+
+        _uiState.value = _uiState.value.copy(
+            showFolderBrowser = true,
+            audioFiles = emptyList(),
+            currentTrackIndex = -1
+        )
+    }
+
+    private fun saveFolderPath(path: String) {
+        prefs.edit().putString(KEY_FOLDER_PATH, path).apply()
+    }
+
+    private fun getSavedFolderPath(): String? {
+        return prefs.getString(KEY_FOLDER_PATH, null)
     }
 
     private fun clearSavedFolder() {
         prefs.edit()
-            .remove(KEY_FOLDER_URI)
+            .remove(KEY_FOLDER_PATH)
             .remove(KEY_LAST_TRACK_INDEX)
             .apply()
     }
@@ -179,96 +257,6 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
 
     private fun getSavedShuffleState(): Boolean {
         return prefs.getBoolean(KEY_SHUFFLE_ENABLED, false)
-    }
-
-    fun onFolderSelected(uri: Uri) {
-        viewModelScope.launch {
-            try {
-                // Take persistable permission for future app sessions
-                val contentResolver = getApplication<Application>().contentResolver
-                contentResolver.takePersistableUriPermission(
-                    uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION
-                )
-                // Save the folder URI for persistence
-                saveFolder(uri)
-            } catch (e: Exception) {
-                // Permission may already be taken, continue loading
-            }
-            loadFolder(uri)
-        }
-    }
-
-    private fun loadFolder(uri: Uri, restoreState: Boolean = false) {
-        viewModelScope.launch {
-            // Stop current playback and reset player state when changing folders
-            stopPositionUpdates()
-            activePlayer.stop()
-            _playbackState.value = PlaybackState.IDLE
-            _currentPosition.value = 0
-            _duration.value = 0
-
-            _uiState.value = _uiState.value.copy(
-                isLoading = true,
-                errorMessage = null
-            )
-
-            try {
-                // Run file operations on IO dispatcher to keep UI responsive
-                val (folderName, files) = withContext(Dispatchers.IO) {
-                    val documentFile = DocumentFile.fromTreeUri(getApplication(), uri)
-                    val name = documentFile?.name ?: "Unknown Folder"
-
-                    val audioFiles = documentFile?.listFiles()
-                        ?.filter { file ->
-                            file.isFile &&
-                            file.name != null &&
-                            audioExtensions.any { ext ->
-                                file.name!!.lowercase().endsWith(".$ext")
-                            }
-                        }
-                        ?.map { file ->
-                            AudioFile(
-                                uri = file.uri,
-                                displayName = file.name ?: "Unknown",
-                                mimeType = file.type ?: "audio/*",
-                                size = file.length()
-                            )
-                        }
-                        ?.sortedBy { it.displayName.lowercase() }
-                        ?: emptyList()
-
-                    Pair(name, audioFiles)
-                }
-
-                // Restore saved state if requested, otherwise select first track
-                val savedTrackIndex = if (restoreState) getSavedTrackIndex() else -1
-                val savedShuffleState = if (restoreState) getSavedShuffleState() else false
-                val trackIndex = when {
-                    savedTrackIndex in files.indices -> savedTrackIndex
-                    files.isNotEmpty() -> 0  // Auto-select first track
-                    else -> -1
-                }
-
-                _uiState.value = _uiState.value.copy(
-                    audioFiles = files,
-                    selectedFolderUri = uri,
-                    selectedFolderName = folderName,
-                    currentTrackIndex = trackIndex,
-                    shuffleEnabled = savedShuffleState,
-                    isLoading = false
-                )
-
-                // Initialize shuffle tracker for folder (preserves played list if same folder)
-                shuffleTracker.initialize(uri, files.size)
-
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    errorMessage = "Failed to load folder: ${e.message}"
-                )
-            }
-        }
     }
 
     fun playTrack(index: Int) {
@@ -427,7 +415,7 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
 
     companion object {
         private const val PREFS_NAME = "music_player_prefs"
-        private const val KEY_FOLDER_URI = "selected_folder_uri"
+        private const val KEY_FOLDER_PATH = "selected_folder_path"
         private const val KEY_LAST_TRACK_INDEX = "last_track_index"
         private const val KEY_SHUFFLE_ENABLED = "shuffle_enabled"
     }

@@ -1,10 +1,6 @@
 package com.bammellab.musicplayer.ui.screens
 
 import android.content.res.Configuration
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,14 +12,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.PhoneAndroid
-import androidx.compose.material.icons.filled.SdCard
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -36,36 +30,33 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.bammellab.musicplayer.data.model.AudioFile
+import com.bammellab.musicplayer.data.model.MusicFolder
 import com.bammellab.musicplayer.player.PlaybackState
 import com.bammellab.musicplayer.ui.components.CastButton
 import com.bammellab.musicplayer.ui.components.FileListView
+import com.bammellab.musicplayer.ui.components.FolderListView
 import com.bammellab.musicplayer.ui.components.MusicLoadingIndicator
 import com.bammellab.musicplayer.ui.components.NowPlayingView
 import com.bammellab.musicplayer.ui.components.PlayerControls
-import com.bammellab.musicplayer.util.StorageHelper
-import com.bammellab.musicplayer.util.StorageOption
 import com.bammellab.musicplayer.viewmodel.MusicPlayerViewModel
 import com.bammellab.musicplayer.viewmodel.MusicPlayerUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MusicPlayerScreen(
+    hasPermission: Boolean,
+    onRequestPermission: () -> Unit,
     viewModel: MusicPlayerViewModel = viewModel(),
     modifier: Modifier = Modifier
 ) {
@@ -75,36 +66,21 @@ fun MusicPlayerScreen(
     val duration by viewModel.duration.collectAsStateWithLifecycle()
     val castState by viewModel.castState.collectAsStateWithLifecycle()
 
-    val context = LocalContext.current
-    var showStorageDialog by remember { mutableStateOf(false) }
-    val storageOptions = remember { StorageHelper.getStorageOptions(context) }
-
-    val folderPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocumentTree()
-    ) { uri ->
-        uri?.let { viewModel.onFolderSelected(it) }
-    }
-
-    val launchFolderPicker: (Uri?) -> Unit = { initialUri ->
-        folderPickerLauncher.launch(initialUri)
-    }
-
-    val onSelectFolder: () -> Unit = {
-        if (storageOptions.size > 1) {
-            showStorageDialog = true
-        } else {
-            launchFolderPicker(storageOptions.firstOrNull()?.initialUri)
-        }
-    }
-
     val snackbarHostState = remember { SnackbarHostState() }
     val fileListState = rememberLazyListState()
+    val folderListState = rememberLazyListState()
 
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-    // Use smallest width to detect tablets (minimum dimension regardless of orientation)
     val smallestWidth = minOf(configuration.screenWidthDp, configuration.screenHeightDp)
     val isTablet = smallestWidth >= 600
+
+    // Load media when permission is granted
+    LaunchedEffect(hasPermission) {
+        if (hasPermission && !uiState.hasPermission) {
+            viewModel.onPermissionResult(true)
+        }
+    }
 
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let { message ->
@@ -140,133 +116,197 @@ fun MusicPlayerScreen(
                         }
                     }
                 },
+                navigationIcon = {
+                    // Show back button when viewing tracks (not in folder browser)
+                    if (hasPermission && !uiState.showFolderBrowser && uiState.hasFiles) {
+                        IconButton(onClick = { viewModel.showFolderBrowser() }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back to folders"
+                            )
+                        }
+                    }
+                },
                 actions = {
                     // Cast button - shows when Cast devices are available
                     CastButton(modifier = Modifier.size(48.dp))
-
-                    IconButton(
-                        onClick = onSelectFolder
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Folder,
-                            contentDescription = "Select folder"
-                        )
-                    }
                 }
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
 
-        if (uiState.isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentAlignment = Alignment.Center
-            ) {
-                MusicLoadingIndicator(
-                    message = "Loading music files..."
+        when {
+            // No permission - show permission request UI
+            !hasPermission -> {
+                PermissionRequestContent(
+                    onRequestPermission = onRequestPermission,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
                 )
             }
-        } else {
-            if (isLandscape) {
-                LandscapeLayout(
-                    uiState = uiState,
-                    playbackState = playbackState,
-                    currentPosition = currentPosition,
-                    duration = duration,
-                    fileListState = fileListState,
-                    isTablet = isTablet,
-                    onSelectFolder = onSelectFolder,
-                    onTrackSelected = { viewModel.playTrack(it) },
-                    onSeek = { viewModel.seekTo(it) },
-                    onPlayPause = { viewModel.togglePlayPause() },
-                    onPrevious = { viewModel.playPrevious() },
-                    onNext = { viewModel.playNext() },
-                    onShuffleToggle = { viewModel.toggleShuffle() },
-                    onVolumeUp = { viewModel.volumeUp() },
-                    onVolumeDown = { viewModel.volumeDown() },
+
+            // Loading
+            uiState.isLoading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    MusicLoadingIndicator(
+                        message = "Loading music files..."
+                    )
+                }
+            }
+
+            // Show folder browser
+            uiState.showFolderBrowser -> {
+                FolderBrowserContent(
+                    folders = uiState.allFolders,
+                    folderListState = folderListState,
+                    onFolderSelected = { viewModel.selectFolder(it) },
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding)
                 )
-            } else {
-                PortraitLayout(
-                    uiState = uiState,
-                    playbackState = playbackState,
-                    currentPosition = currentPosition,
-                    duration = duration,
-                    fileListState = fileListState,
-                    onSelectFolder = onSelectFolder,
-                    onTrackSelected = { viewModel.playTrack(it) },
-                    onSeek = { viewModel.seekTo(it) },
-                    onPlayPause = { viewModel.togglePlayPause() },
-                    onPrevious = { viewModel.playPrevious() },
-                    onNext = { viewModel.playNext() },
-                    onShuffleToggle = { viewModel.toggleShuffle() },
-                    onVolumeUp = { viewModel.volumeUp() },
-                    onVolumeDown = { viewModel.volumeDown() },
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding)
-                )
+            }
+
+            // Show track list and player
+            else -> {
+                if (isLandscape) {
+                    LandscapeLayout(
+                        uiState = uiState,
+                        playbackState = playbackState,
+                        currentPosition = currentPosition,
+                        duration = duration,
+                        fileListState = fileListState,
+                        isTablet = isTablet,
+                        onTrackSelected = { viewModel.playTrack(it) },
+                        onSeek = { viewModel.seekTo(it) },
+                        onPlayPause = { viewModel.togglePlayPause() },
+                        onPrevious = { viewModel.playPrevious() },
+                        onNext = { viewModel.playNext() },
+                        onShuffleToggle = { viewModel.toggleShuffle() },
+                        onVolumeUp = { viewModel.volumeUp() },
+                        onVolumeDown = { viewModel.volumeDown() },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding)
+                    )
+                } else {
+                    PortraitLayout(
+                        uiState = uiState,
+                        playbackState = playbackState,
+                        currentPosition = currentPosition,
+                        duration = duration,
+                        fileListState = fileListState,
+                        onTrackSelected = { viewModel.playTrack(it) },
+                        onSeek = { viewModel.seekTo(it) },
+                        onPlayPause = { viewModel.togglePlayPause() },
+                        onPrevious = { viewModel.playPrevious() },
+                        onNext = { viewModel.playNext() },
+                        onShuffleToggle = { viewModel.toggleShuffle() },
+                        onVolumeUp = { viewModel.volumeUp() },
+                        onVolumeDown = { viewModel.volumeDown() },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding)
+                    )
+                }
             }
         }
-    }
-
-    if (showStorageDialog) {
-        StorageSelectionDialog(
-            storageOptions = storageOptions,
-            onStorageSelected = { option ->
-                showStorageDialog = false
-                launchFolderPicker(option.initialUri)
-            },
-            onDismiss = { showStorageDialog = false }
-        )
     }
 }
 
 @Composable
-private fun StorageSelectionDialog(
-    storageOptions: List<StorageOption>,
-    onStorageSelected: (StorageOption) -> Unit,
-    onDismiss: () -> Unit
+private fun PermissionRequestContent(
+    onRequestPermission: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Select Storage") },
-        text = {
-            Column {
-                storageOptions.forEach { option ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onStorageSelected(option) }
-                            .padding(vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = if (option.isPrimary) Icons.Filled.PhoneAndroid else Icons.Filled.SdCard,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Text(
-                            text = option.name,
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = Icons.Filled.MusicNote,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Permission Required",
+                style = MaterialTheme.typography.headlineSmall
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Grant access to play your music files",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            Button(onClick = onRequestPermission) {
+                Text("Grant Permission")
             }
         }
-    )
+    }
+}
+
+@Composable
+private fun FolderBrowserContent(
+    folders: List<MusicFolder>,
+    folderListState: LazyListState,
+    onFolderSelected: (MusicFolder) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.surfaceVariant
+        ) {
+            Text(
+                text = "${folders.size} folder${if (folders.size != 1) "s" else ""} with music",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+        }
+
+        if (folders.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = Icons.Filled.Folder,
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "No music folders found",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        } else {
+            FolderListView(
+                folders = folders,
+                onFolderSelected = onFolderSelected,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                listState = folderListState
+            )
+        }
+    }
 }
 
 @Composable
@@ -276,7 +316,6 @@ private fun PortraitLayout(
     currentPosition: Int,
     duration: Int,
     fileListState: LazyListState,
-    onSelectFolder: () -> Unit,
     onTrackSelected: (Int) -> Unit,
     onSeek: (Int) -> Unit,
     onPlayPause: () -> Unit,
@@ -299,71 +338,43 @@ private fun PortraitLayout(
             )
         }
 
-        if (!uiState.hasFiles) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = Icons.Filled.Folder,
-                        contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "Select a folder to browse audio files",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(onClick = onSelectFolder) {
-                        Text("Select Folder")
-                    }
-                }
-            }
-        } else {
-            FileListView(
-                audioFiles = uiState.audioFiles,
-                currentTrackIndex = uiState.currentTrackIndex,
-                onTrackSelected = onTrackSelected,
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                listState = fileListState
+        FileListView(
+            audioFiles = uiState.audioFiles,
+            currentTrackIndex = uiState.currentTrackIndex,
+            onTrackSelected = onTrackSelected,
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            listState = fileListState
+        )
+
+        HorizontalDivider()
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            NowPlayingView(
+                currentTrack = uiState.currentTrack,
+                currentPosition = currentPosition,
+                duration = duration,
+                onSeek = onSeek
             )
 
-            HorizontalDivider()
+            Spacer(modifier = Modifier.height(16.dp))
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-            ) {
-                NowPlayingView(
-                    currentTrack = uiState.currentTrack,
-                    currentPosition = currentPosition,
-                    duration = duration,
-                    onSeek = onSeek
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                PlayerControls(
-                    playbackState = playbackState,
-                    shuffleEnabled = uiState.shuffleEnabled,
-                    volume = uiState.volume,
-                    onPlayPause = onPlayPause,
-                    onPrevious = onPrevious,
-                    onNext = onNext,
-                    onShuffleToggle = onShuffleToggle,
-                    onVolumeUp = onVolumeUp,
-                    onVolumeDown = onVolumeDown
-                )
-            }
+            PlayerControls(
+                playbackState = playbackState,
+                shuffleEnabled = uiState.shuffleEnabled,
+                volume = uiState.volume,
+                onPlayPause = onPlayPause,
+                onPrevious = onPrevious,
+                onNext = onNext,
+                onShuffleToggle = onShuffleToggle,
+                onVolumeUp = onVolumeUp,
+                onVolumeDown = onVolumeDown
+            )
         }
     }
 }
@@ -376,7 +387,6 @@ private fun LandscapeLayout(
     duration: Int,
     fileListState: LazyListState,
     isTablet: Boolean,
-    onSelectFolder: () -> Unit,
     onTrackSelected: (Int) -> Unit,
     onSeek: (Int) -> Unit,
     onPlayPause: () -> Unit,
@@ -387,90 +397,64 @@ private fun LandscapeLayout(
     onVolumeDown: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    if (!uiState.hasFiles) {
-        Box(
-            modifier = modifier,
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(
-                    imageVector = Icons.Filled.Folder,
-                    contentDescription = null,
-                    modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "Select a folder to browse audio files",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Button(onClick = onSelectFolder) {
-                    Text("Select Folder")
-                }
-            }
-        }
-    } else {
-        Row(modifier = modifier) {
-            // Left side - File list
-            Column(modifier = Modifier.weight(0.5f)) {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = MaterialTheme.colorScheme.surfaceVariant
-                ) {
-                    Text(
-                        text = uiState.selectedFolderName,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                    )
-                }
-                FileListView(
-                    audioFiles = uiState.audioFiles,
-                    currentTrackIndex = uiState.currentTrackIndex,
-                    onTrackSelected = onTrackSelected,
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                    listState = fileListState
-                )
-            }
-
-            // Vertical divider between sections
-            VerticalDivider(modifier = Modifier.fillMaxHeight())
-
-            // Right side - Player controls
-            Column(
-                modifier = Modifier
-                    .weight(0.5f)
-                    .fillMaxHeight()
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+    Row(modifier = modifier) {
+        // Left side - File list
+        Column(modifier = Modifier.weight(0.5f)) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surfaceVariant
             ) {
-                NowPlayingView(
-                    currentTrack = uiState.currentTrack,
-                    currentPosition = currentPosition,
-                    duration = duration,
-                    onSeek = onSeek,
-                    isCompact = !isTablet
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                PlayerControls(
-                    playbackState = playbackState,
-                    shuffleEnabled = uiState.shuffleEnabled,
-                    volume = uiState.volume,
-                    onPlayPause = onPlayPause,
-                    onPrevious = onPrevious,
-                    onNext = onNext,
-                    onShuffleToggle = onShuffleToggle,
-                    onVolumeUp = onVolumeUp,
-                    onVolumeDown = onVolumeDown,
-                    isCompact = !isTablet
+                Text(
+                    text = uiState.selectedFolderName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
             }
+            FileListView(
+                audioFiles = uiState.audioFiles,
+                currentTrackIndex = uiState.currentTrackIndex,
+                onTrackSelected = onTrackSelected,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                listState = fileListState
+            )
+        }
+
+        // Vertical divider between sections
+        VerticalDivider(modifier = Modifier.fillMaxHeight())
+
+        // Right side - Player controls
+        Column(
+            modifier = Modifier
+                .weight(0.5f)
+                .fillMaxHeight()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            NowPlayingView(
+                currentTrack = uiState.currentTrack,
+                currentPosition = currentPosition,
+                duration = duration,
+                onSeek = onSeek,
+                isCompact = !isTablet
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            PlayerControls(
+                playbackState = playbackState,
+                shuffleEnabled = uiState.shuffleEnabled,
+                volume = uiState.volume,
+                onPlayPause = onPlayPause,
+                onPrevious = onPrevious,
+                onNext = onNext,
+                onShuffleToggle = onShuffleToggle,
+                onVolumeUp = onVolumeUp,
+                onVolumeDown = onVolumeDown,
+                isCompact = !isTablet
+            )
         }
     }
 }

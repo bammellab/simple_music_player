@@ -81,6 +81,7 @@ private fun AudioFileItem(
             Box(modifier = Modifier.size(48.dp)) {
                 AlbumArtImage(
                     uri = audioFile.uri,
+                    albumArtUri = audioFile.albumArtUri,
                     size = 48.dp,
                     fallbackIcon = Icons.Filled.MusicNote,
                     showBackground = true

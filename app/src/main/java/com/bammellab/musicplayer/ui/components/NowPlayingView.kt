@@ -51,6 +51,7 @@ fun NowPlayingView(
             ) {
                 AlbumArtImage(
                     uri = currentTrack?.uri,
+                    albumArtUri = currentTrack?.albumArtUri,
                     size = albumArtSize,
                     fallbackIcon = Icons.Filled.Album,
                     showBackground = true,
@@ -110,6 +111,7 @@ fun NowPlayingView(
             ) {
                 AlbumArtImage(
                     uri = currentTrack?.uri,
+                    albumArtUri = currentTrack?.albumArtUri,
                     size = albumArtSize,
                     fallbackIcon = Icons.Filled.Album,
                     showBackground = true,

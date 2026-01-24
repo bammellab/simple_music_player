@@ -23,7 +23,8 @@ import com.bammellab.musicplayer.data.AlbumArtRequest
  * A composable that displays album art from an audio file URI.
  * Shows a fallback icon if no album art is available or during loading.
  *
- * @param uri The URI of the audio file to extract album art from
+ * @param uri The URI of the audio file to extract embedded album art from
+ * @param albumArtUri Optional MediaStore album art URI (takes priority over embedded art)
  * @param modifier Modifier for the component
  * @param size The size of the image/icon
  * @param fallbackIcon Icon to show when no album art is available
@@ -33,16 +34,20 @@ import com.bammellab.musicplayer.data.AlbumArtRequest
 fun AlbumArtImage(
     uri: Uri?,
     modifier: Modifier = Modifier,
+    albumArtUri: Uri? = null,
     size: Dp = 48.dp,
     fallbackIcon: ImageVector = Icons.Filled.MusicNote,
     showBackground: Boolean = true
 ) {
+    // Priority: albumArtUri (MediaStore) → uri (embedded) → fallback
+    val imageUri = albumArtUri ?: uri
+
     // Wrap in fixed-size Box to prevent layout shifts during loading/transitions
     Box(
         modifier = modifier.size(size),
         contentAlignment = Alignment.Center
     ) {
-        if (uri == null) {
+        if (imageUri == null) {
             FallbackIcon(
                 icon = fallbackIcon,
                 size = size,
@@ -50,7 +55,7 @@ fun AlbumArtImage(
             )
         } else {
             SubcomposeAsyncImage(
-                model = AlbumArtRequest(uri),
+                model = AlbumArtRequest(imageUri),
                 contentDescription = "Album art",
                 modifier = Modifier
                     .size(size)
@@ -60,7 +65,25 @@ fun AlbumArtImage(
                     FallbackIcon(icon = fallbackIcon, size = size, showBackground = showBackground)
                 },
                 error = {
-                    FallbackIcon(icon = fallbackIcon, size = size, showBackground = showBackground)
+                    // If albumArtUri failed, try embedded art from uri
+                    if (albumArtUri != null && uri != null) {
+                        SubcomposeAsyncImage(
+                            model = AlbumArtRequest(uri),
+                            contentDescription = "Album art",
+                            modifier = Modifier
+                                .size(size)
+                                .clip(MaterialTheme.shapes.small),
+                            contentScale = ContentScale.Crop,
+                            loading = {
+                                FallbackIcon(icon = fallbackIcon, size = size, showBackground = showBackground)
+                            },
+                            error = {
+                                FallbackIcon(icon = fallbackIcon, size = size, showBackground = showBackground)
+                            }
+                        )
+                    } else {
+                        FallbackIcon(icon = fallbackIcon, size = size, showBackground = showBackground)
+                    }
                 }
             )
         }

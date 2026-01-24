@@ -33,9 +33,45 @@ class AlbumArtFetcher(
 ) : Fetcher {
 
     override suspend fun fetch(): FetchResult? {
+        val uriString = data.uri.toString()
+
+        // Check if this is a MediaStore album art URI
+        if (uriString.contains("albumart")) {
+            return fetchFromMediaStore()
+        }
+
+        // Otherwise, try to extract embedded art from the audio file
+        return fetchEmbeddedArt()
+    }
+
+    private fun fetchFromMediaStore(): FetchResult? {
+        return try {
+            Log.d(TAG, "Fetching MediaStore album art for: ${data.uri}")
+            val inputStream = context.contentResolver.openInputStream(data.uri)
+            if (inputStream == null) {
+                Log.d(TAG, "No album art found at: ${data.uri}")
+                return null
+            }
+
+            Log.d(TAG, "Found MediaStore album art for: ${data.uri}")
+            SourceResult(
+                source = ImageSource(
+                    source = inputStream.source().buffer(),
+                    context = context
+                ),
+                mimeType = null,
+                dataSource = DataSource.DISK
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching MediaStore album art for ${data.uri}: ${e.message}", e)
+            null
+        }
+    }
+
+    private fun fetchEmbeddedArt(): FetchResult? {
         val retriever = MediaMetadataRetriever()
         return try {
-            Log.d(TAG, "Fetching album art for: ${data.uri}")
+            Log.d(TAG, "Fetching embedded album art for: ${data.uri}")
             retriever.setDataSource(context, data.uri)
             val artBytes = retriever.embeddedPicture
 
@@ -54,7 +90,7 @@ class AlbumArtFetcher(
                 dataSource = DataSource.DISK
             )
         } catch (e: Exception) {
-            Log.e(TAG, "Error fetching album art for ${data.uri}: ${e.message}", e)
+            Log.e(TAG, "Error fetching embedded album art for ${data.uri}: ${e.message}", e)
             null
         } finally {
             retriever.release()
