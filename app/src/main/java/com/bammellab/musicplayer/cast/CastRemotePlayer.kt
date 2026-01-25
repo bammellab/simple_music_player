@@ -8,6 +8,7 @@ import com.bammellab.musicplayer.player.PlayerController
 import com.google.android.gms.cast.MediaInfo
 import com.google.android.gms.cast.MediaLoadRequestData
 import com.google.android.gms.cast.MediaMetadata
+import com.google.android.gms.cast.MediaSeekOptions
 import com.google.android.gms.cast.MediaStatus
 import com.google.android.gms.cast.framework.CastSession
 import com.google.android.gms.cast.framework.media.RemoteMediaClient
@@ -167,7 +168,10 @@ class CastRemotePlayer(
     }
 
     override fun seekTo(position: Int) {
-        getRemoteMediaClient()?.seek(position.toLong())
+        val seekOptions = MediaSeekOptions.Builder()
+            .setPosition(position.toLong())
+            .build()
+        getRemoteMediaClient()?.seek(seekOptions)
         _currentPosition.value = position
     }
 
