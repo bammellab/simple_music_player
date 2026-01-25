@@ -256,7 +256,11 @@ fun MusicPlayerScreen(
         }
         if (showAboutDescriptionDialog) {
             AboutDescriptionDialog(
-                onDismiss = { showAboutDescriptionDialog = false }
+                onDismiss = { showAboutDescriptionDialog = false },
+                onBack = {
+                    showAboutDescriptionDialog = false
+                    showAboutDialog = true
+                }
             )
         }
     }

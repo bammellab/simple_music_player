@@ -107,9 +107,10 @@ fun AboutDialog(
 
 @Composable
 fun AboutDescriptionDialog(
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onBack: () -> Unit
 ) {
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(onDismissRequest = onBack) {
         Surface(
             shape = RoundedCornerShape(16.dp),
             color = Color(0xFF1E1E1E)
