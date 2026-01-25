@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">ミュージックプレイヤー</string>
+    <string name="attribution_label">音楽再生サービス</string>
+
+    <!-- About Dialog -->
+    <string name="about_this_app">このアプリについて…</string>
+    <string name="about_this_app_subtitle">詳細はこちらをクリックしてください。</string>
+    <string name="play_store_title">Play Storeでこのアプリを見る…</string>
+    <string name="play_store_subtitle">Google Play Storeのページを見るにはこちらをクリックしてください。</string>
+    <string name="source_code_title">ソースコード</string>
+    <string name="source_code_subtitle">このアプリのソースコードはGithubで公開されています。Githubに移動するにはこちらをクリックしてください。</string>
+    <string name="version_label">バージョン</string>
+    <string name="close">閉じる</string>
+
+    <string name="about_description_text01">Simple Music Playerは、ローカルの音楽コレクションを再生するための軽量でオープンソースのAndroidアプリです。\n\n機能：\n• フォルダごとに音楽を閲覧\n• シャッフル再生\n• テレビにストリーミングするChromecastサポート\n• アルバムアート表示\n• Material Design 3インターフェース\n\nJetpack Composeで構築され、シンプルさと使いやすさを追求して設計されています。\n\nBammellabによって開発されました。</string>
+</resources>

@@ -30,17 +30,33 @@ android {
     }
     signingConfigs {
         create("release") {
-            val props = Properties()
-            val propFile = file("../gradle/signing.properties")
-            if (propFile.canRead()) {
-                props.load(FileInputStream(propFile))
-                if (props.containsKey("STORE_FILE") && props.containsKey("STORE_PASSWORD") &&
-                    props.containsKey("KEY_ALIAS") && props.containsKey("KEY_PASSWORD")
-                ) {
-                    storeFile = file(props["STORE_FILE"] as String)
-                    storePassword = props["STORE_PASSWORD"] as String
-                    keyAlias = props["KEY_ALIAS"] as String
-                    keyPassword = props["KEY_PASSWORD"] as String
+            // First try environment variables (for CI)
+            val envStoreFile = System.getenv("STORE_FILE")
+            val envStorePassword = System.getenv("STORE_PASSWORD")
+            val envKeyAlias = System.getenv("KEY_ALIAS")
+            val envKeyPassword = System.getenv("KEY_PASSWORD")
+
+            if (!envStoreFile.isNullOrEmpty() && !envStorePassword.isNullOrEmpty() &&
+                !envKeyAlias.isNullOrEmpty() && !envKeyPassword.isNullOrEmpty()
+            ) {
+                storeFile = file(envStoreFile)
+                storePassword = envStorePassword
+                keyAlias = envKeyAlias
+                keyPassword = envKeyPassword
+            } else {
+                // Fall back to signing.properties file (for local builds)
+                val props = Properties()
+                val propFile = file("../gradle/signing.properties")
+                if (propFile.canRead()) {
+                    props.load(FileInputStream(propFile))
+                    if (props.containsKey("STORE_FILE") && props.containsKey("STORE_PASSWORD") &&
+                        props.containsKey("KEY_ALIAS") && props.containsKey("KEY_PASSWORD")
+                    ) {
+                        storeFile = file(props["STORE_FILE"] as String)
+                        storePassword = props["STORE_PASSWORD"] as String
+                        keyAlias = props["KEY_ALIAS"] as String
+                        keyPassword = props["KEY_PASSWORD"] as String
+                    }
                 }
             }
         }
@@ -55,7 +71,6 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("release")
         }
         debug {
             isMinifyEnabled = false
@@ -73,6 +88,13 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    // Universal APK/Bundle configuration - includes all resources
+    bundle {
+        language { enableSplit = false }
+        density { enableSplit = false }
+        abi { enableSplit = false }
     }
 }
 

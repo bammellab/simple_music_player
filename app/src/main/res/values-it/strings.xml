@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">Lettore Musicale</string>
+    <string name="attribution_label">Servizio di Riproduzione Musicale</string>
+
+    <!-- About Dialog -->
+    <string name="about_this_app">Informazioni su questa app…</string>
+    <string name="about_this_app_subtitle">Clicca qui per maggiori informazioni.</string>
+    <string name="play_store_title">Questa app nel Play Store…</string>
+    <string name="play_store_subtitle">Clicca qui per vedere la pagina del Google Play Store.</string>
+    <string name="source_code_title">Codice sorgente</string>
+    <string name="source_code_subtitle">Questa app ha il codice sorgente disponibile su Github. Clicca qui per andare su Github.</string>
+    <string name="version_label">Versione</string>
+    <string name="close">Chiudi</string>
+
+    <string name="about_description_text01">Simple Music Player è un\'app Android leggera e open-source per riprodurre la tua collezione musicale locale.\n\nCaratteristiche:\n• Sfoglia la musica per cartella\n• Riproduzione casuale\n• Supporto Chromecast per lo streaming sulla tua TV\n• Visualizzazione copertina album\n• Interfaccia Material Design 3\n\nCostruita con Jetpack Compose e progettata per semplicità e facilità d\'uso.\n\nSviluppata da Bammellab.</string>
+</resources>
