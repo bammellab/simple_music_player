@@ -29,7 +29,7 @@ import androidx.compose.ui.window.Dialog
 import com.bammellab.musicplayer.BuildConfig
 import com.bammellab.musicplayer.R
 
-private const val PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.bammellab.musicplayer"
+private const val INSTALLATION_URL = "https://github.com/bammellab/simple_music_player/blob/master/INSTALLATION.md"
 private const val SOURCE_CODE_URL = "https://github.com/bammellab/simple_music_player"
 
 @Composable
@@ -68,10 +68,10 @@ fun AboutDialog(
                 HorizontalDivider(color = Color(0xFF505050))
 
                 AboutMenuItem(
-                    title = stringResource(R.string.play_store_title),
-                    subtitle = stringResource(R.string.play_store_subtitle),
+                    title = stringResource(R.string.installation_title),
+                    subtitle = stringResource(R.string.installation_subtitle),
                     onClick = {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(PLAY_STORE_URL))
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(INSTALLATION_URL))
                         context.startActivity(intent)
                     }
                 )

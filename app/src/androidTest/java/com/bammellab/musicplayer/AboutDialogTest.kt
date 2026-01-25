@@ -59,7 +59,7 @@ class AboutDialogTest {
             .assertIsDisplayed()
 
         composeTestRule
-            .onNodeWithText("This app in the Play Store…")
+            .onNodeWithText("Installation instructions…")
             .assertIsDisplayed()
 
         composeTestRule

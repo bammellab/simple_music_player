@@ -11,6 +11,10 @@ A simple Android music player that plays audio files from a selected folder.
 - Seek bar for track position
 - Now Playing view with current track info
 
+## Installation
+
+Download the latest APK from the [Releases](../../releases) page and install it on your Android device. See [INSTALLATION.md](INSTALLATION.md) for detailed instructions on how to sideload the app.
+
 ## Build
 
 ```bash
