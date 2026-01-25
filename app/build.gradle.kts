@@ -31,16 +31,16 @@ android {
     signingConfigs {
         create("release") {
             // First try environment variables (for CI)
-            val envStoreFile = System.getenv("STORE_FILE")
-            val envStorePassword = System.getenv("STORE_PASSWORD")
+            val envKeystoreFile = System.getenv("KEYSTORE_FILE")
+            val envKeystorePassword = System.getenv("KEYSTORE_PASSWORD")
             val envKeyAlias = System.getenv("KEY_ALIAS")
             val envKeyPassword = System.getenv("KEY_PASSWORD")
 
-            if (!envStoreFile.isNullOrEmpty() && !envStorePassword.isNullOrEmpty() &&
+            if (!envKeystoreFile.isNullOrEmpty() && !envKeystorePassword.isNullOrEmpty() &&
                 !envKeyAlias.isNullOrEmpty() && !envKeyPassword.isNullOrEmpty()
             ) {
-                storeFile = file(envStoreFile)
-                storePassword = envStorePassword
+                storeFile = file(envKeystoreFile)
+                storePassword = envKeystorePassword
                 keyAlias = envKeyAlias
                 keyPassword = envKeyPassword
             } else {
