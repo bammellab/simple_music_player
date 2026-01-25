@@ -1,4 +1,16 @@
 <resources>
     <string name="app_name">Music Player</string>
     <string name="attribution_label">Music Playback Service</string>
+
+    <!-- About Dialog -->
+    <string name="about_this_app">About this app…</string>
+    <string name="about_this_app_subtitle">Click here for more information.</string>
+    <string name="play_store_title">This app in the Play Store…</string>
+    <string name="play_store_subtitle">Click here to see the Google Play Store listing.</string>
+    <string name="source_code_title">Source code</string>
+    <string name="source_code_subtitle">This app has source code available on Github. Click here to go to Github.</string>
+    <string name="version_label">Version</string>
+    <string name="close">Close</string>
+
+    <string name="about_description_text01">Simple Music Player is a lightweight, open-source Android app for playing your local music collection.\n\nFeatures:\n• Browse music by folder\n• Shuffle playback\n• Chromecast support for streaming to your TV\n• Album art display\n• Material Design 3 interface\n\nBuilt with Jetpack Compose and designed for simplicity and ease of use.\n\nDeveloped by Bammellab.</string>
 </resources>
