@@ -65,7 +65,7 @@ fun AboutDialog(
                     onClick = onShowDescription
                 )
 
-                HorizontalDivider(color = Color(0xFF404040))
+                HorizontalDivider(color = Color(0xFF505050))
 
                 AboutMenuItem(
                     title = stringResource(R.string.play_store_title),
@@ -76,7 +76,7 @@ fun AboutDialog(
                     }
                 )
 
-                HorizontalDivider(color = Color(0xFF404040))
+                HorizontalDivider(color = Color(0xFF505050))
 
                 AboutMenuItem(
                     title = stringResource(R.string.source_code_title),
@@ -87,7 +87,7 @@ fun AboutDialog(
                     }
                 )
 
-                HorizontalDivider(color = Color(0xFF404040))
+                HorizontalDivider(color = Color(0xFF505050))
 
                 AboutMenuItem(
                     title = stringResource(R.string.version_label),
@@ -166,7 +166,7 @@ private fun AboutMenuItem(
         )
         Text(
             text = subtitle,
-            color = Color.Gray,
+            color = Color(0xFFCCCCCC),
             fontSize = 12.sp
         )
     }
