@@ -45,14 +45,14 @@ _sandbox
 
 # signing for release version
 gradle/signing.properties
+*.keystore
+*.jks
 
 # kotlin
 .kotlin
 
 # claude
 .claude
-
-
-
+.claude/settings.local.json
 
 

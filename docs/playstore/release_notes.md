@@ -1,5 +1,37 @@
 # Release Notes
 
+## Version 1.1 (January 2026)
+
+### What's New
+This release adds hierarchical folder navigation, improved usability, and an About screen.
+
+### Features
+- Hierarchical folder tree navigation for browsing music
+- Pull-to-refresh to reload folder and track lists
+- About dialog with app info and external links
+- Human-friendly names for storage volumes
+- User names displayed for multi-user storage folders
+- Prohibited icon shown for unplayable audio formats
+- Improved text contrast in About dialogs
+- Scrollable About dialog in landscape mode
+
+### Play Store "What's New" Text (500 characters max)
+
+```
+Version 1.1 brings better folder navigation and usability improvements!
+
+New features:
+• Hierarchical folder tree - browse your music collection naturally
+• Pull-to-refresh - swipe down to reload folders and tracks
+• About screen - app info and links
+• Friendly storage names - easier to identify your music locations
+• Visual indicator for unsupported audio formats
+
+Bug fixes and UI polish included.
+```
+
+---
+
 ## Version 1.0.0 (Initial Release)
 
 ### What's New

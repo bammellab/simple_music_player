@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -34,7 +35,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -43,6 +46,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bammellab.musicplayer.data.model.FolderNode
 import com.bammellab.musicplayer.player.PlaybackState
+import com.bammellab.musicplayer.ui.components.AboutDescriptionDialog
+import com.bammellab.musicplayer.ui.components.AboutDialog
 import com.bammellab.musicplayer.ui.components.CastButton
 import com.bammellab.musicplayer.ui.components.FileListView
 import com.bammellab.musicplayer.ui.components.FolderListView
@@ -69,6 +74,8 @@ fun MusicPlayerScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val fileListState = rememberLazyListState()
     val folderListState = rememberLazyListState()
+    var showAboutDialog by remember { mutableStateOf(false) }
+    var showAboutDescriptionDialog by remember { mutableStateOf(false) }
 
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -134,6 +141,12 @@ fun MusicPlayerScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showAboutDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Filled.Info,
+                            contentDescription = "About"
+                        )
+                    }
                     // Cast button - shows when Cast devices are available
                     CastButton(modifier = Modifier.size(48.dp))
                 }
@@ -230,6 +243,25 @@ fun MusicPlayerScreen(
                     )
                 }
             }
+        }
+
+        if (showAboutDialog) {
+            AboutDialog(
+                onDismiss = { showAboutDialog = false },
+                onShowDescription = {
+                    showAboutDialog = false
+                    showAboutDescriptionDialog = true
+                }
+            )
+        }
+        if (showAboutDescriptionDialog) {
+            AboutDescriptionDialog(
+                onDismiss = { showAboutDescriptionDialog = false },
+                onBack = {
+                    showAboutDescriptionDialog = false
+                    showAboutDialog = true
+                }
+            )
         }
     }
 }

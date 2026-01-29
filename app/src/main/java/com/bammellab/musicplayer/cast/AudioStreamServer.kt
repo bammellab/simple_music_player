@@ -1,11 +1,12 @@
 package com.bammellab.musicplayer.cast
 
 import android.content.Context
+import android.net.ConnectivityManager
 import android.net.Uri
-import android.net.wifi.WifiManager
 import android.util.Log
 import fi.iki.elonen.NanoHTTPD
 import java.io.InputStream
+import java.net.Inet4Address
 import java.net.InetAddress
 import java.net.NetworkInterface
 import java.util.UUID
@@ -171,20 +172,23 @@ class AudioStreamServer(
 
     private fun getLocalIpAddress(): String {
         try {
-            // Try WiFi first
-            val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
-            wifiManager?.connectionInfo?.ipAddress?.let { ip ->
-                if (ip != 0) {
-                    return formatIpAddress(ip)
+            // Try ConnectivityManager first (modern API)
+            val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            connectivityManager?.activeNetwork?.let { network ->
+                connectivityManager.getLinkProperties(network)?.linkAddresses?.forEach { linkAddress ->
+                    val address = linkAddress.address
+                    if (address is Inet4Address && !address.isLoopbackAddress) {
+                        return address.hostAddress ?: "127.0.0.1"
+                    }
                 }
             }
 
             // Fallback to network interfaces
             NetworkInterface.getNetworkInterfaces()?.toList()?.forEach { networkInterface ->
                 networkInterface.inetAddresses?.toList()?.forEach { address ->
-                    if (!address.isLoopbackAddress && address is InetAddress) {
+                    if (!address.isLoopbackAddress && address is Inet4Address) {
                         val hostAddress = address.hostAddress
-                        if (hostAddress != null && !hostAddress.contains(":")) {  // IPv4 only
+                        if (hostAddress != null) {
                             return hostAddress
                         }
                     }
@@ -194,11 +198,6 @@ class AudioStreamServer(
             Log.e(TAG, "Error getting IP address", e)
         }
         return "127.0.0.1"
-    }
-
-    @Suppress("DEPRECATION")
-    private fun formatIpAddress(ip: Int): String {
-        return "${ip and 0xFF}.${ip shr 8 and 0xFF}.${ip shr 16 and 0xFF}.${ip shr 24 and 0xFF}"
     }
 
     /**

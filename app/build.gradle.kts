@@ -1,10 +1,10 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.io.FileInputStream
 import java.util.Properties
 import kotlin.apply
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
 }
 
@@ -23,17 +23,42 @@ android {
         applicationId = "com.bammellab.musicplayer"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 3
+        versionName = "1.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     signingConfigs {
         create("release") {
-            storeFile = file("C:/a/j/bammellab/keystoresBammellab.jks")
-            storePassword = localProperties.getProperty("RELEASE_STORE_PASSWORD")
-            keyAlias = localProperties.getProperty("RELEASE_KEY_ALIAS")
-            keyPassword = localProperties.getProperty("RELEASE_KEY_PASSWORD")
+            // First try environment variables (for CI)
+            val envKeystoreFile = System.getenv("KEYSTORE_FILE")
+            val envKeystorePassword = System.getenv("KEYSTORE_PASSWORD")
+            val envKeyAlias = System.getenv("KEY_ALIAS")
+            val envKeyPassword = System.getenv("KEY_PASSWORD")
+
+            if (!envKeystoreFile.isNullOrEmpty() && !envKeystorePassword.isNullOrEmpty() &&
+                !envKeyAlias.isNullOrEmpty() && !envKeyPassword.isNullOrEmpty()
+            ) {
+                storeFile = file(envKeystoreFile)
+                storePassword = envKeystorePassword
+                keyAlias = envKeyAlias
+                keyPassword = envKeyPassword
+            } else {
+                // Fall back to signing.properties file (for local builds)
+                val props = Properties()
+                val propFile = file("../gradle/signing.properties")
+                if (propFile.canRead()) {
+                    props.load(FileInputStream(propFile))
+                    if (props.containsKey("STORE_FILE") && props.containsKey("STORE_PASSWORD") &&
+                        props.containsKey("KEY_ALIAS") && props.containsKey("KEY_PASSWORD")
+                    ) {
+                        storeFile = file(props["STORE_FILE"] as String)
+                        storePassword = props["STORE_PASSWORD"] as String
+                        keyAlias = props["KEY_ALIAS"] as String
+                        keyPassword = props["KEY_PASSWORD"] as String
+                    }
+                }
+            }
         }
     }
 
@@ -62,6 +87,14 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
+    }
+
+    // Universal APK/Bundle configuration - includes all resources
+    bundle {
+        language { enableSplit = false }
+        density { enableSplit = false }
+        abi { enableSplit = false }
     }
 }
 

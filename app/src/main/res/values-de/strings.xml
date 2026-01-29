@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">Musikspieler</string>
+    <string name="attribution_label">Musikwiedergabedienst</string>
+
+    <!-- About Dialog -->
+    <string name="about_this_app">Über diese App…</string>
+    <string name="about_this_app_subtitle">Klicken Sie hier für weitere Informationen.</string>
+    <string name="installation_title">Installationsanleitung…</string>
+    <string name="installation_subtitle">Klicken Sie hier für Anleitungen zur Installation und Aktualisierung dieser App.</string>
+    <string name="source_code_title">Quellcode</string>
+    <string name="source_code_subtitle">Der Quellcode dieser App ist auf Github verfügbar. Klicken Sie hier, um zu Github zu gelangen.</string>
+    <string name="version_label">Version</string>
+    <string name="close">Schließen</string>
+
+    <string name="about_description_text01">Simple Music Player ist eine leichte, quelloffene Android-App zum Abspielen Ihrer lokalen Musiksammlung.\n\nFunktionen:\n• Musik nach Ordnern durchsuchen\n• Zufallswiedergabe\n• Chromecast-Unterstützung zum Streamen auf Ihren Fernseher\n• Albumcover-Anzeige\n• Material Design 3 Oberfläche\n\nEntwickelt mit Jetpack Compose und für Einfachheit und Benutzerfreundlichkeit konzipiert.\n\nEntwickelt von Bammellab.</string>
+</resources>
