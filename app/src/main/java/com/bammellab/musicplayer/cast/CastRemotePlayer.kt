@@ -9,7 +9,6 @@ import com.google.android.gms.cast.MediaInfo
 import com.google.android.gms.cast.MediaLoadRequestData
 import com.google.android.gms.cast.MediaMetadata
 import com.google.android.gms.cast.MediaStatus
-import com.google.android.gms.cast.framework.CastSession
 import com.google.android.gms.cast.framework.media.RemoteMediaClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -174,7 +173,7 @@ class CastRemotePlayer(
     override fun setVolume(volume: Float) {
         val session = castSessionManager.getCurrentSession()
         try {
-            session?.setVolume(volume.toDouble())
+            session?.volume = volume.toDouble()
         } catch (e: Exception) {
             Log.e(TAG, "Error setting volume", e)
         }

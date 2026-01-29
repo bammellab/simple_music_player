@@ -55,10 +55,10 @@ import com.bammellab.musicplayer.viewmodel.MusicPlayerUiState
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MusicPlayerScreen(
+    modifier: Modifier = Modifier,
     hasPermission: Boolean,
     onRequestPermission: () -> Unit,
-    viewModel: MusicPlayerViewModel = viewModel(),
-    modifier: Modifier = Modifier
+    viewModel: MusicPlayerViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val playbackState by viewModel.playbackState.collectAsStateWithLifecycle()
@@ -272,14 +272,14 @@ private fun PermissionRequestContent(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FolderBrowserContent(
+    modifier: Modifier = Modifier,
     folders: List<FolderNode>,
     displayPath: String,
     folderListState: LazyListState,
     onFolderSelected: (FolderNode) -> Unit,
     onPlayFolder: (FolderNode) -> Unit,
     isRefreshing: Boolean = false,
-    onRefresh: () -> Unit = {},
-    modifier: Modifier = Modifier
+    onRefresh: () -> Unit = {}
 ) {
     Column(modifier = modifier) {
         Surface(
@@ -352,6 +352,7 @@ private fun FolderBrowserContent(
 
 @Composable
 private fun PortraitLayout(
+    modifier: Modifier = Modifier,
     uiState: MusicPlayerUiState,
     playbackState: PlaybackState,
     currentPosition: Int,
@@ -366,8 +367,7 @@ private fun PortraitLayout(
     onVolumeUp: () -> Unit,
     onVolumeDown: () -> Unit,
     isRefreshing: Boolean = false,
-    onRefresh: () -> Unit = {},
-    modifier: Modifier = Modifier
+    onRefresh: () -> Unit = {}
 ) {
     Column(modifier = modifier) {
         Surface(
@@ -427,6 +427,7 @@ private fun PortraitLayout(
 
 @Composable
 private fun LandscapeLayout(
+    modifier: Modifier = Modifier,
     uiState: MusicPlayerUiState,
     playbackState: PlaybackState,
     currentPosition: Int,
@@ -442,8 +443,7 @@ private fun LandscapeLayout(
     onVolumeUp: () -> Unit,
     onVolumeDown: () -> Unit,
     isRefreshing: Boolean = false,
-    onRefresh: () -> Unit = {},
-    modifier: Modifier = Modifier
+    onRefresh: () -> Unit = {}
 ) {
     Row(modifier = modifier) {
         // Left side - File list

@@ -1,5 +1,6 @@
 package com.bammellab.musicplayer.data.repository
 
+import android.Manifest
 import android.content.ContentUris
 import android.content.Context
 import android.net.Uri
@@ -7,6 +8,7 @@ import android.os.Build
 import android.os.Process
 import android.os.UserManager
 import android.provider.MediaStore
+import androidx.annotation.RequiresPermission
 import com.bammellab.musicplayer.data.model.AudioFile
 import com.bammellab.musicplayer.data.model.FolderNode
 import com.bammellab.musicplayer.data.model.MusicFolder
@@ -206,6 +208,7 @@ class MediaStoreRepository(private val context: Context) {
      * Uses UserManager.userName on API 31+ for the current user,
      * falls back to a default label otherwise.
      */
+    @RequiresPermission(anyOf = ["android.permission.QUERY_USERS", Manifest.permission.GET_ACCOUNTS_PRIVILEGED, "android.permission.CREATE_USERS", "android.permission.MANAGE_USERS"])
     private fun getUserDisplayName(userId: Int): String {
         return try {
             val userManager = context.getSystemService(Context.USER_SERVICE) as? UserManager

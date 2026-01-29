@@ -97,14 +97,14 @@ This document outlines all required and optional graphic assets for Play Store s
 
 ## Asset Checklist
 
-| Asset | Required | Status |
-|-------|----------|--------|
-| App Icon (512x512) | Yes | Configured in project |
-| Feature Graphic (1024x500) | Yes | To be created |
-| Phone Screenshots (min 2) | Yes | 1 available, need more |
-| Tablet 7" Screenshots | No | Optional |
-| Tablet 10" Screenshots | No | Optional |
-| Promotional Video | No | Optional |
+| Asset                      | Required | Status                 |
+|----------------------------|----------|------------------------|
+| App Icon (512x512)         | Yes      | Configured in project  |
+| Feature Graphic (1024x500) | Yes      | To be created          |
+| Phone Screenshots (min 2)  | Yes      | 1 available, need more |
+| Tablet 7" Screenshots      | No       | Optional               |
+| Tablet 10" Screenshots     | No       | Optional               |
+| Promotional Video          | No       | Optional               |
 
 ---
 
