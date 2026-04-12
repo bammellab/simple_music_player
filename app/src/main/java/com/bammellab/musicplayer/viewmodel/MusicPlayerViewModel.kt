@@ -2,6 +2,7 @@ package com.bammellab.musicplayer.viewmodel
 
 import android.app.Application
 import android.content.Context
+import android.media.AudioManager
 import com.bammellab.musicplayer.cast.AudioStreamServer
 import com.bammellab.musicplayer.cast.CastRemotePlayer
 import com.bammellab.musicplayer.cast.CastSessionManager
@@ -97,6 +98,8 @@ data class MusicPlayerUiState(
 
 class MusicPlayerViewModel(application: Application) : AndroidViewModel(application) {
 
+    private val audioManager = application.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+
     // Local player
     private val localPlayer = AudioPlayerManager(application)
 
@@ -140,8 +143,17 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
         localPlayer.setOnCompletionListener { playNext() }
         castPlayer.setOnCompletionListener { playNext() }
 
+        // Sync displayed volume with actual system music volume
+        _uiState.value = _uiState.value.copy(volume = getSystemVolume())
+
         // Observe cast state changes
         startCastStateObserver()
+    }
+
+    private fun getSystemVolume(): Float {
+        val current = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat()
+        val max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).toFloat()
+        return if (max > 0f) current / max else 0.5f
     }
 
     private fun startCastStateObserver() {
@@ -596,7 +608,11 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
             localPlayer.play(audioFile.uri)
         }
 
-        activePlayer.setVolume(_uiState.value.volume)
+        // For cast, apply stored volume to the Cast session.
+        // For local, volume is managed system-wide via AudioManager.
+        if (castState.value.isCasting) {
+            castPlayer.setVolume(_uiState.value.volume)
+        }
         startPositionUpdates()
 
         // Save last played track for persistence
@@ -681,18 +697,25 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     fun volumeUp() {
-        val newVolume = (_uiState.value.volume + 0.1f).coerceAtMost(1f)
-        setVolume(newVolume)
+        if (castState.value.isCasting) {
+            val newVolume = (_uiState.value.volume + 0.1f).coerceAtMost(1f)
+            castPlayer.setVolume(newVolume)
+            _uiState.value = _uiState.value.copy(volume = newVolume)
+        } else {
+            audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_RAISE, AudioManager.FLAG_SHOW_UI)
+            _uiState.value = _uiState.value.copy(volume = getSystemVolume())
+        }
     }
 
     fun volumeDown() {
-        val newVolume = (_uiState.value.volume - 0.1f).coerceAtLeast(0f)
-        setVolume(newVolume)
-    }
-
-    private fun setVolume(volume: Float) {
-        _uiState.value = _uiState.value.copy(volume = volume)
-        activePlayer.setVolume(volume)
+        if (castState.value.isCasting) {
+            val newVolume = (_uiState.value.volume - 0.1f).coerceAtLeast(0f)
+            castPlayer.setVolume(newVolume)
+            _uiState.value = _uiState.value.copy(volume = newVolume)
+        } else {
+            audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI)
+            _uiState.value = _uiState.value.copy(volume = getSystemVolume())
+        }
     }
 
     fun seekTo(position: Int) {
@@ -708,12 +731,19 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
     private fun startPositionUpdates() {
         stopPositionUpdates()
         positionUpdateJob = viewModelScope.launch {
+            var keepAliveTick = 0
             while (isActive) {
                 // Update from active player
                 activePlayer.updateCurrentPosition()
                 _playbackState.value = activePlayer.playbackState.value
                 _currentPosition.value = activePlayer.currentPosition.value
                 _duration.value = activePlayer.duration.value
+                // Ping the Cast receiver every ~30 s to signal active playback and
+                // discourage the Google TV screensaver from covering the album art.
+                if (castState.value.isCasting && ++keepAliveTick >= 60) {
+                    keepAliveTick = 0
+                    castPlayer.keepAlive()
+                }
                 delay(500)
             }
         }

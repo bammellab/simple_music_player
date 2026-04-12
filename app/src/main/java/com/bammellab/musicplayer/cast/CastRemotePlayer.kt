@@ -10,6 +10,7 @@ import com.google.android.gms.cast.MediaLoadRequestData
 import com.google.android.gms.cast.MediaMetadata
 import com.google.android.gms.cast.MediaSeekOptions
 import com.google.android.gms.cast.MediaStatus
+import com.google.android.gms.common.images.WebImage
 import com.google.android.gms.cast.framework.media.RemoteMediaClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -57,32 +58,30 @@ class CastRemotePlayer(
 
     private fun updateStateFromRemote() {
         val client = getRemoteMediaClient() ?: return
-        val mediaStatus = client.mediaStatus
+        val mediaStatus = client.mediaStatus ?: return
 
-        if (mediaStatus != null) {
-            // Update duration
-            val mediaDuration = mediaStatus.mediaInfo?.streamDuration ?: 0L
-            _duration.value = mediaDuration.toInt()
+        _duration.value = (mediaStatus.mediaInfo?.streamDuration ?: 0L).toInt()
+        _currentPosition.value = client.approximateStreamPosition.toInt()
 
-            // Update position
-            _currentPosition.value = client.approximateStreamPosition.toInt()
+        val playerState = mediaStatus.playerState
+        val idleReason = mediaStatus.idleReason
 
-            // Update playback state
-            val newState = when (mediaStatus.playerState) {
-                MediaStatus.PLAYER_STATE_PLAYING -> PlaybackState.PLAYING
-                MediaStatus.PLAYER_STATE_PAUSED -> PlaybackState.PAUSED
-                MediaStatus.PLAYER_STATE_BUFFERING -> PlaybackState.PLAYING
-                MediaStatus.PLAYER_STATE_IDLE -> {
-                    if (mediaStatus.idleReason == MediaStatus.IDLE_REASON_FINISHED) {
-                        onCompletionCallback?.invoke()
-                        PlaybackState.STOPPED
-                    } else {
-                        PlaybackState.IDLE
-                    }
-                }
-                else -> PlaybackState.IDLE
+        // Set state BEFORE invoking the completion callback so that when
+        // playNext() → play() sets PLAYING, it is not overwritten by STOPPED.
+        _playbackState.value = when (playerState) {
+            MediaStatus.PLAYER_STATE_PLAYING -> PlaybackState.PLAYING
+            MediaStatus.PLAYER_STATE_PAUSED -> PlaybackState.PAUSED
+            MediaStatus.PLAYER_STATE_BUFFERING -> PlaybackState.PLAYING
+            MediaStatus.PLAYER_STATE_IDLE -> {
+                if (idleReason == MediaStatus.IDLE_REASON_FINISHED) PlaybackState.STOPPED
+                else PlaybackState.IDLE
             }
-            _playbackState.value = newState
+            else -> PlaybackState.IDLE
+        }
+
+        if (playerState == MediaStatus.PLAYER_STATE_IDLE &&
+            idleReason == MediaStatus.IDLE_REASON_FINISHED) {
+            onCompletionCallback?.invoke()
         }
     }
 
@@ -114,6 +113,20 @@ class CastRemotePlayer(
         val metadata = MediaMetadata(MediaMetadata.MEDIA_TYPE_MUSIC_TRACK).apply {
             currentAudioFile?.let { file ->
                 putString(MediaMetadata.KEY_TITLE, file.displayName)
+                if (file.artist.isNotBlank()) {
+                    putString(MediaMetadata.KEY_ARTIST, file.artist)
+                }
+                if (file.album.isNotBlank()) {
+                    putString(MediaMetadata.KEY_ALBUM_TITLE, file.album)
+                }
+                // Register album art with HTTP server so Cast device can fetch it.
+                // content:// URIs are not accessible from the Cast device, so we
+                // serve the art through AudioStreamServer just like the audio.
+                file.albumArtUri?.let { artUri ->
+                    val artworkUrl = audioStreamServer.registerArtwork(artUri)
+                    addImage(WebImage(Uri.parse(artworkUrl)))
+                    Log.d(TAG, "Artwork URL: $artworkUrl")
+                }
             }
         }
 
@@ -137,7 +150,13 @@ class CastRemotePlayer(
     }
 
     private fun getMimeType(uri: Uri): String {
-        val fileName = uri.lastPathSegment?.lowercase() ?: ""
+        // AudioFile.mimeType is populated from MediaStore.Audio.Media.MIME_TYPE and is
+        // authoritative. The URI alone can't be used for MIME detection because Cast uses
+        // content:// URIs whose lastPathSegment is a numeric ID, not a filename.
+        currentAudioFile?.mimeType?.takeIf { it.isNotBlank() }?.let { return it }
+
+        // Fallback: try the display name if mimeType is somehow empty
+        val fileName = (currentAudioFile?.displayName ?: uri.lastPathSegment)?.lowercase() ?: ""
         return when {
             fileName.endsWith(".mp3") -> "audio/mpeg"
             fileName.endsWith(".m4a") -> "audio/mp4"
@@ -186,6 +205,15 @@ class CastRemotePlayer(
     override fun updateCurrentPosition() {
         val client = getRemoteMediaClient() ?: return
         _currentPosition.value = client.approximateStreamPosition.toInt()
+    }
+
+    /**
+     * Send a status request to the Cast receiver to signal activity.
+     * Called periodically during playback to discourage the Google TV from
+     * activating its screensaver over the album art display.
+     */
+    fun keepAlive() {
+        getRemoteMediaClient()?.requestStatus()
     }
 
     override fun setOnCompletionListener(listener: () -> Unit) {

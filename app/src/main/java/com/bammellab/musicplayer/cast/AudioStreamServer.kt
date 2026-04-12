@@ -154,8 +154,14 @@ class AudioStreamServer(
         val inputStream = context.contentResolver.openInputStream(uri)
             ?: return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Cannot open file")
 
-        // Skip to start position
-        inputStream.skip(start)
+        // Skip to start position. InputStream.skip() is not guaranteed to skip
+        // the full amount in a single call, so loop until the offset is reached.
+        var toSkip = start
+        while (toSkip > 0) {
+            val skipped = inputStream.skip(toSkip)
+            if (skipped <= 0) break
+            toSkip -= skipped
+        }
 
         // Create partial content response
         val response = newFixedLengthResponse(
